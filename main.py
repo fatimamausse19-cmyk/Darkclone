@@ -7,9 +7,8 @@ from conf import *
 
 CACHE_FILE = "/data/cache.json"
 
-
 # ==============================
-# CLIENTE
+# CLIENT
 # ==============================
 app = Client(
     "minha_sessao",
@@ -17,7 +16,6 @@ app = Client(
     api_hash=API_HASH,
     session_string=STRING_SESSION
 )
-
 
 # ==============================
 # CACHE
@@ -29,52 +27,85 @@ async def load_cache():
     except:
         return {}
 
-
 async def save_cache(cache):
     os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
     with open(CACHE_FILE, "w") as f:
         json.dump(cache, f)
 
-
 # ==============================
-# ENVIO ASYNC COM DEBUG
+# ENVIO ASYNC
 # ==============================
 async def send(msg):
     try:
         if msg.text:
             await app.send_message(
-                DEST_CHAT,
-                msg.text,
-                message_thread_id=DEST_THREAD_ID
+                chat_id=DEST_CHAT,
+                text=msg.text,
+                thread_id=DEST_THREAD_ID
             )
             print(f"➡️ Texto enviado: msg {msg.id}")
 
         elif msg.photo:
             await app.send_photo(
-                DEST_CHAT,
-                msg.photo.file_id,
+                chat_id=DEST_CHAT,
+                photo=msg.photo.file_id,
                 caption=msg.caption,
-                message_thread_id=DEST_THREAD_ID
+                thread_id=DEST_THREAD_ID
             )
             print(f"➡️ Foto enviada: msg {msg.id}")
 
         elif msg.video:
             await app.send_video(
-                DEST_CHAT,
-                msg.video.file_id,
+                chat_id=DEST_CHAT,
+                video=msg.video.file_id,
                 caption=msg.caption,
-                message_thread_id=DEST_THREAD_ID
+                thread_id=DEST_THREAD_ID
             )
             print(f"➡️ Video enviado: msg {msg.id}")
 
         elif msg.document:
             await app.send_document(
-                DEST_CHAT,
-                msg.document.file_id,
+                chat_id=DEST_CHAT,
+                document=msg.document.file_id,
                 caption=msg.caption,
-                message_thread_id=DEST_THREAD_ID
+                thread_id=DEST_THREAD_ID
             )
             print(f"➡️ Documento enviado: msg {msg.id}")
+
+        elif msg.audio:
+            await app.send_audio(
+                chat_id=DEST_CHAT,
+                audio=msg.audio.file_id,
+                caption=msg.caption,
+                thread_id=DEST_THREAD_ID
+            )
+            print(f"➡️ Audio enviado: msg {msg.id}")
+
+        elif msg.voice:
+            await app.send_voice(
+                chat_id=DEST_CHAT,
+                voice=msg.voice.file_id,
+                caption=msg.caption,
+                thread_id=DEST_THREAD_ID
+            )
+            print(f"➡️ Voice enviado: msg {msg.id}")
+
+        elif msg.sticker:
+            await app.send_sticker(
+                chat_id=DEST_CHAT,
+                sticker=msg.sticker.file_id,
+                thread_id=DEST_THREAD_ID
+            )
+            print(f"➡️ Sticker enviado: msg {msg.id}")
+
+        elif msg.animation:
+            await app.send_animation(
+                chat_id=DEST_CHAT,
+                animation=msg.animation.file_id,
+                caption=msg.caption,
+                thread_id=DEST_THREAD_ID
+            )
+            print(f"➡️ Animation enviado: msg {msg.id}")
 
         else:
             print(f"⚠️ Tipo não suportado, msg {msg.id}")
@@ -87,18 +118,17 @@ async def send(msg):
     except Exception as e:
         print(f"❌ Erro msg {msg.id}: {e}")
 
-
 # ==============================
-# DEBUG: MOSTRAR MENSAGENS
+# MAIN ASYNC
 # ==============================
 async def main():
-    print("🚀 Iniciando clonagem async (debug)...")
+    print("🚀 Iniciando clonagem async completa...")
     cache = await load_cache()
 
-    count_total = 0
-    count_sent = 0
+    total = 0
+    sent = 0
     async for msg in app.get_chat_history(ORIGIN_CHAT):
-        count_total += 1
+        total += 1
         print(f"🔹 Encontrada msg {msg.id} tipo: {type(msg)}")
 
         if str(msg.id) in cache:
@@ -112,11 +142,10 @@ async def main():
         await send(msg)
         cache[str(msg.id)] = True
         await save_cache(cache)
-        count_sent += 1
+        sent += 1
         await asyncio.sleep(DELAY)
 
-    print(f"🎉 Clonagem finalizada! Total mensagens: {count_total}, enviadas: {count_sent}")
-
+    print(f"🎉 Clonagem finalizada! Total: {total}, Enviadas: {sent}")
 
 # ==============================
 # EXECUÇÃO
@@ -124,7 +153,6 @@ async def main():
 async def run():
     async with app:
         await main()
-
 
 if __name__ == "__main__":
     asyncio.run(run())
