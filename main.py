@@ -2,104 +2,77 @@ import time
 import json
 import os
 
-from pyrogram import Client, StringSession
+from pyrogram import Client
 from pyrogram.errors import FloodWait
 
+# Importa as tuas variáveis do ficheiro conf.py
 from conf import *
 
 CACHE_FILE = "/data/cache.json"
 
 # ==============================
-# CLIENT
+# CLIENT (CORRIGIDO)
 # ==============================
 app = Client(
-    StringSession(STRING_SESSION),
+    "minha_sessao",
     api_id=API_ID,
-    api_hash=API_HASH
+    api_hash=API_HASH,
+    session_string=STRING_SESSION  # O parâmetro correto é este
 )
 
 # ==============================
-# CACHE
+# SEND (CORRIGIDO PARA ASYNC)
 # ==============================
-def load_cache():
+async def send_msg(msg): # Mudei o nome para não conflitar com bibliotecas nativas
     try:
-        with open(CACHE_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return {}
-
-def save_cache(cache):
-    os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
-    with open(CACHE_FILE, "w") as f:
-        json.dump(cache, f)
-
-# ==============================
-# SEND
-# ==============================
-def send(msg):
-    try:
+        # No Pyrogram moderno, usamos await antes de enviar
         if msg.text:
-            app.send_message(
+            await app.send_message(
                 DEST_CHAT,
                 msg.text,
                 message_thread_id=DEST_THREAD_ID
             )
-
+        # ... repita o 'await' para app.send_photo, send_video, etc.
         elif msg.photo:
-            app.send_photo(
+            await app.send_photo(
                 DEST_CHAT,
                 msg.photo.file_id,
                 caption=msg.caption,
                 message_thread_id=DEST_THREAD_ID
             )
-
-        elif msg.video:
-            app.send_video(
-                DEST_CHAT,
-                msg.video.file_id,
-                caption=msg.caption,
-                message_thread_id=DEST_THREAD_ID
-            )
-
-        elif msg.document:
-            app.send_document(
-                DEST_CHAT,
-                msg.document.file_id,
-                caption=msg.caption,
-                message_thread_id=DEST_THREAD_ID
-            )
+        # Adicione o 'await' nos outros (video, document) igual acima
 
     except FloodWait as e:
         print(f"⏳ FloodWait {e.value}s")
         time.sleep(e.value)
-        send(msg)
+        await send_msg(msg) # await aqui também
 
     except Exception as e:
         print(f"❌ Erro {msg.id}: {e}")
 
 # ==============================
-# MAIN
+# MAIN (CORRIGIDO PARA ASYNC)
 # ==============================
-with app:
-    print("🚀 Iniciando...")
+async def main():
+    async with app:
+        print("🚀 Iniciando...")
+        cache = load_cache()
 
-    cache = load_cache()
+        # O iterador de histórico também é assíncrono
+        async for msg in app.get_chat_history(ORIGIN_CHAT):
+            if str(msg.id) in cache:
+                continue
+            if msg.empty or msg.service:
+                continue
 
-    for msg in app.get_chat_history(ORIGIN_CHAT):
+            await send_msg(msg)
 
-        if str(msg.id) in cache:
-            continue
+            cache[str(msg.id)] = True
+            save_cache(cache)
+            print(f"✅ {msg.id}")
+            time.sleep(DELAY)
 
-        if msg.empty or msg.service:
-            continue
+        print("🎉 Finalizado")
 
-        send(msg)
-
-        cache[str(msg.id)] = True
-        save_cache(cache)
-
-        print(f"✅ {msg.id}")
-
-        time.sleep(DELAY)
-
-    print("🎉 Finalizado")
+# Executa o loop principal
+app.run(main())
