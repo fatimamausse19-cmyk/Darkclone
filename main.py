@@ -1,38 +1,48 @@
-import time
+import asyncio
 import json
 import os
-
-from pyrogram import Client
+from pyrogram import Client, StringSession
 from pyrogram.errors import FloodWait
-
-# Importa as tuas variáveis do ficheiro conf.py
 from conf import *
 
 CACHE_FILE = "/data/cache.json"
 
 # ==============================
-# CLIENT (CORRIGIDO)
+# CLIENT ASYNC
 # ==============================
 app = Client(
-    "minha_sessao",
+    StringSession(STRING_SESSION),
     api_id=API_ID,
-    api_hash=API_HASH,
-    session_string=STRING_SESSION  # O parâmetro correto é este
+    api_hash=API_HASH
 )
 
 # ==============================
-# SEND (CORRIGIDO PARA ASYNC)
+# CACHE
 # ==============================
-async def send_msg(msg): # Mudei o nome para não conflitar com bibliotecas nativas
+async def load_cache():
     try:
-        # No Pyrogram moderno, usamos await antes de enviar
+        with open(CACHE_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {}
+
+async def save_cache(cache):
+    os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+    with open(CACHE_FILE, "w") as f:
+        json.dump(cache, f)
+
+# ==============================
+# ENVIO DE MENSAGEM (async)
+# ==============================
+async def send(msg):
+    try:
         if msg.text:
             await app.send_message(
                 DEST_CHAT,
                 msg.text,
                 message_thread_id=DEST_THREAD_ID
             )
-        # ... repita o 'await' para app.send_photo, send_video, etc.
+
         elif msg.photo:
             await app.send_photo(
                 DEST_CHAT,
@@ -40,39 +50,59 @@ async def send_msg(msg): # Mudei o nome para não conflitar com bibliotecas nati
                 caption=msg.caption,
                 message_thread_id=DEST_THREAD_ID
             )
-        # Adicione o 'await' nos outros (video, document) igual acima
+
+        elif msg.video:
+            await app.send_video(
+                DEST_CHAT,
+                msg.video.file_id,
+                caption=msg.caption,
+                message_thread_id=DEST_THREAD_ID
+            )
+
+        elif msg.document:
+            await app.send_document(
+                DEST_CHAT,
+                msg.document.file_id,
+                caption=msg.caption,
+                message_thread_id=DEST_THREAD_ID
+            )
 
     except FloodWait as e:
-        print(f"⏳ FloodWait {e.value}s")
-        time.sleep(e.value)
-        await send_msg(msg) # await aqui também
+        print(f"⏳ FloodWait {e.value}s - msg {msg.id}")
+        await asyncio.sleep(e.value)
+        await send(msg)
 
     except Exception as e:
-        print(f"❌ Erro {msg.id}: {e}")
+        print(f"❌ Erro msg {msg.id}: {e}")
 
 # ==============================
-# MAIN (CORRIGIDO PARA ASYNC)
+# MAIN LOOP ASYNC
 # ==============================
 async def main():
+    print("🚀 Iniciando clonagem async...")
+
+    cache = await load_cache()
+
+    async for msg in app.get_chat_history(ORIGIN_CHAT):
+        if str(msg.id) in cache:
+            continue
+        if msg.empty or msg.service:
+            continue
+
+        await send(msg)
+        cache[str(msg.id)] = True
+        await save_cache(cache)
+        print(f"✅ Clonado msg {msg.id}")
+        await asyncio.sleep(DELAY)
+
+    print("🎉 Clonagem finalizada!")
+
+# ==============================
+# RUN
+# ==============================
+async def run():
     async with app:
-        print("🚀 Iniciando...")
-        cache = load_cache()
+        await main()
 
-        # O iterador de histórico também é assíncrono
-        async for msg in app.get_chat_history(ORIGIN_CHAT):
-            if str(msg.id) in cache:
-                continue
-            if msg.empty or msg.service:
-                continue
-
-            await send_msg(msg)
-
-            cache[str(msg.id)] = True
-            save_cache(cache)
-            print(f"✅ {msg.id}")
-            time.sleep(DELAY)
-
-        print("🎉 Finalizado")
-
-# Executa o loop principal
-app.run(main())
+if __name__ == "__main__":
+    asyncio.run(run())
