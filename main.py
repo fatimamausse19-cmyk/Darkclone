@@ -1,22 +1,11 @@
-import os
 import time
 import json
-import pyrogram
+import os
+
 from pyrogram import Client, StringSession
 from pyrogram.errors import FloodWait
 
-# ==============================
-# CONFIG (Railway ENV)
-# ==============================
-API_ID = int(os.environ["API_ID"])
-API_HASH = os.environ["API_HASH"]
-STRING_SESSION = os.environ["STRING_SESSION"]
-
-ORIGIN_CHAT = int(os.environ["ORIGIN_CHAT"])
-DEST_CHAT = int(os.environ["DEST_CHAT"])
-DEST_THREAD_ID = int(os.environ["DEST_THREAD_ID"])
-
-DELAY = float(os.environ.get("DELAY", 1.0))
+from conf import *
 
 CACHE_FILE = "/data/cache.json"
 
@@ -45,7 +34,7 @@ def save_cache(cache):
         json.dump(cache, f)
 
 # ==============================
-# SEND MESSAGE
+# SEND
 # ==============================
 def send(msg):
     try:
@@ -80,85 +69,37 @@ def send(msg):
                 message_thread_id=DEST_THREAD_ID
             )
 
-        elif msg.audio:
-            app.send_audio(
-                DEST_CHAT,
-                msg.audio.file_id,
-                caption=msg.caption,
-                message_thread_id=DEST_THREAD_ID
-            )
-
-        elif msg.voice:
-            app.send_voice(
-                DEST_CHAT,
-                msg.voice.file_id,
-                caption=msg.caption,
-                message_thread_id=DEST_THREAD_ID
-            )
-
-        elif msg.animation:
-            app.send_animation(
-                DEST_CHAT,
-                msg.animation.file_id,
-                caption=msg.caption,
-                message_thread_id=DEST_THREAD_ID
-            )
-
-        elif msg.sticker:
-            app.send_sticker(
-                DEST_CHAT,
-                msg.sticker.file_id,
-                message_thread_id=DEST_THREAD_ID
-            )
-
-        elif msg.video_note:
-            app.send_video_note(
-                DEST_CHAT,
-                msg.video_note.file_id,
-                message_thread_id=DEST_THREAD_ID
-            )
-
-        elif msg.poll and msg.poll.type == "regular":
-            app.send_poll(
-                DEST_CHAT,
-                question=msg.poll.question,
-                options=[opt.text for opt in msg.poll.options],
-                is_anonymous=msg.poll.is_anonymous,
-                allows_multiple_answers=msg.poll.allows_multiple_answers,
-                message_thread_id=DEST_THREAD_ID
-            )
-
     except FloodWait as e:
         print(f"⏳ FloodWait {e.value}s")
         time.sleep(e.value)
         send(msg)
 
     except Exception as e:
-        print(f"❌ Erro na msg {msg.id}: {e}")
+        print(f"❌ Erro {msg.id}: {e}")
 
 # ==============================
 # MAIN
 # ==============================
 with app:
-    print("🚀 Iniciando clonagem...")
+    print("🚀 Iniciando...")
 
-    posted = load_cache()
+    cache = load_cache()
 
     for msg in app.get_chat_history(ORIGIN_CHAT):
 
-        if str(msg.id) in posted:
+        if str(msg.id) in cache:
             continue
 
-        if msg.empty or msg.service or msg.dice or msg.location:
+        if msg.empty or msg.service:
             continue
 
         send(msg)
 
-        posted[str(msg.id)] = True
-        save_cache(posted)
+        cache[str(msg.id)] = True
+        save_cache(cache)
 
-        print(f"✅ Clonado: {msg.id}")
+        print(f"✅ {msg.id}")
 
         time.sleep(DELAY)
 
-    print("🎉 Clonagem finalizada!")
+    print("🎉 Finalizado")
