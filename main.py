@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import pyrogram
 from pyrogram import Client, StringSession
 from pyrogram.errors import FloodWait
 
