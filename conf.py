@@ -8,4 +8,5 @@ ORIGIN_CHAT = int(os.environ["ORIGIN_CHAT"])
 DEST_CHAT = int(os.environ["DEST_CHAT"])
 DEST_THREAD_ID = int(os.environ["DEST_THREAD_ID"])
 
+# Delay entre envios (em segundos)
 DELAY = float(os.environ.get("DELAY", 1))
